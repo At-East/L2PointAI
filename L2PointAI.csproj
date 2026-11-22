@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- SDK-style project: loads in Visual Studio 2022 / 2026 and via `dotnet build`.
+       Target is still .NET Framework 4.8 (no extra runtime needed on Win10 20H2+ / Win11). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>5</LangVersion>
+    <RootNamespace>L2PointAI</RootNamespace>
+    <AssemblyName>L2PointAI</AssemblyName>
+    <Platforms>AnyCPU</Platforms>
+    <Deterministic>true</Deterministic>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- icon + DPI manifest + version info (AssemblyInfo.cs already provides attributes) -->
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>src\app.manifest</ApplicationManifest>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>1591</NoWarn>
+
+    <!-- 本项目零 NuGet 依赖：禁止 SDK 因目标包探测而隐式引用
+         Microsoft.NETFramework.ReferenceAssemblies，避免 restore 去访问网络 -->
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+    <RestoreDisableParallel>true</RestoreDisableParallel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\*.cs" />
+    <None Include="README.md" />
+    <None Include="使用说明.txt" Condition="Exists('使用说明.txt')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- DPAPI (ProtectedData) lives in System.Security.dll -->
+    <Reference Include="System.Security" />
+  </ItemGroup>
+
+</Project>

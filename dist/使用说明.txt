@@ -1,0 +1,43 @@
+L2PointAI 1.0.0 —— Unitree 4D LiDAR L2 点云 AI 分析器
+==========================================================
+
+【运行环境】
+- Windows 10 (1909 及以上) / Windows 11 / Server 2019+
+- 需要 .NET Framework 4.8：Win10 20H2 以后与 Win11 均已自带，无需安装任何东西
+  老系统（Win7/8.1、旧版 Win10）若双击报缺 .NET，装一次官方 4.8 运行库即可
+- 不需要管理员权限，不写注册表，不装服务
+
+【首次使用】
+1. 双击 L2PointAI.exe
+2. 打开点云：菜单“文件 → 打开点云…”，选 sample\示例房间.csv 可以先看效果
+   或“采集 → 启动接收”，雷达数据会自动刷新，点“抓帧”把当前点云送入分析
+3. 选模型（右侧“模型”面板，二选一）：
+   · 本地 Ollama：先装 Ollama 并执行 ollama pull llava（或 qwen2.5vl / minicpm-v），
+     点“刷新”读取本地模型列表，选中即可
+   · 在线 API：选预设（OpenAI / DeepSeek / Moonshot / 通义），或自行填 BaseURL
+     （要带 /v1）、模型名、API Key；Key 用 Windows DPAPI 加密保存，只有本机当前用户能解
+4. 提示词：右侧“提示词（可自由修改）”里任意编辑，模板可“另存”成新模板
+5. 点“开始分析”，结果出现在“结论 / JSON / Markdown 报告”页签，
+   同时自动存档到 history\<时间>\（含三视图 PNG）
+
+【数据存放位置】
+- 如果 exe 所在目录可写：直接在 exe 旁边的 L2PointAI.settings.json / prompts.json /
+  history\ / exports\
+- 如果放在 Program Files 等只读目录：自动改用 %LOCALAPPDATA%\L2PointAI\
+- 想“绿色便携”：把 exe 放在 U 盘或任意可写文件夹即可
+
+【连雷达（直采）】
+- 网线连接 L2，电脑网卡加第二 IP：192.168.1.2 / 255.255.255.0（不要填默认网关）
+- 防火墙放行入站 UDP 6201；关掉 Unilidar 2（它也占 6201）
+- 采集 → 启动接收，状态行会显示收包数；点“抓帧”即把最近点云作为分析对象
+
+【常见问题】
+- 直采提示端口占用：关 Unilidar 2，或 netstat -ano | findstr 6201 查占用进程
+- 模型报 401/404：检查 BaseURL 是否带 /v1、Key 是否有效、模型是否支持图像输入
+- 纯文本模型（如 deepseek-chat）看不到图：取消“发送三视图图片”只发统计，或换视觉模型
+- 点云很大时略卡：默认最多渲染 25 万点，可在 L2PointAI.settings.json 调 maxViewPoints
+
+【卸载】
+删除 exe 与它旁边的配置/历史文件夹（或 %LOCALAPPDATA%\L2PointAI）即可，无残留注册表项。
+
+版本: 1.0.0.0

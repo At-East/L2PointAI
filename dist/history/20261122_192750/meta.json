@@ -1,0 +1,1 @@
+{"time":"2026-11-22 19:27:50","source":"E:\\文档\\unilidar_l2\\L2PointAI\\dist\\sample\\示例房间_11k点.csv","model":"deepseek-flash","backend":"api","points":11866,"summary":"点云仅分布在 **X=0~6 m、Y=0~5 m、Z=0~2.52 m** 的正象限内，雷达原点位于覆盖区一角。这更像是**雷达前方/一侧的局部区域或经过裁剪的数据**，无法据此判断完整房间形状。"}
