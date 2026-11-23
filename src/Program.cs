@@ -96,6 +96,7 @@ namespace L2PointAI
                     if (cmd == "--bag") return BagTest(args);
                     if (cmd == "--bagshot") return BagShot(args);
                     if (cmd == "--streamtest") return StreamTest(args);
+                    if (cmd == "--view") return ViewTest(args);
                     if (cmd == "--seg") return SegTest(args);
                     if (cmd == "--plane") return PlaneTest(args);
                     if (cmd == "--diag") { _silentErrors = true; return DiagTest(args); }
@@ -537,6 +538,44 @@ namespace L2PointAI
         }
 
         /// <summary>--streamtest &lt;chunks&gt; &lt;chunkLen&gt; : stress the streaming UI update path.</summary>
+
+        /// <summary>--view &lt;cloud&gt; &lt;out.png&gt; &lt;yawDeg&gt; &lt;pitchDeg&gt; [tx ty tz dist] [w h]</summary>
+        static int ViewTest(string[] args)
+        {
+            if (args.Length < 5) return 2;
+            PointCloud pc = PointCloud.Load(args[1]);
+            Camera cam = new Camera();
+            cam.Yaw = double.Parse(args[3], CultureInfo.InvariantCulture) * Math.PI / 180.0;
+            cam.Pitch = double.Parse(args[4], CultureInfo.InvariantCulture) * Math.PI / 180.0;
+            CloudRenderer.Fit(pc, cam);
+            if (args.Length > 8)
+            {
+                cam.Tx = double.Parse(args[5], CultureInfo.InvariantCulture);
+                cam.Ty = double.Parse(args[6], CultureInfo.InvariantCulture);
+                cam.Tz = double.Parse(args[7], CultureInfo.InvariantCulture);
+                cam.Dist = double.Parse(args[8], CultureInfo.InvariantCulture);
+            }
+            int w = 1600, h = 1000;
+            if (args.Length > 10)
+            {
+                w = int.Parse(args[9], CultureInfo.InvariantCulture);
+                h = int.Parse(args[10], CultureInfo.InvariantCulture);
+            }
+            RenderOptions opt = new RenderOptions();
+            opt.ShowGrid = false;
+            opt.ShowAxes = true;
+            opt.PointSize = 4;
+            opt.MaxPoints = 2000000;
+            int drawn;
+            Bitmap bmp = CloudRenderer.Render(pc, cam, w, h, opt, out drawn);
+            using (MemoryStream ms = new MemoryStream())
+            {
+                bmp.Save(ms, ImageFormat.Png);
+                File.WriteAllBytes(args[2], ms.ToArray());
+            }
+            Console.WriteLine("rendered " + drawn + " points -> " + args[2]);
+            return 0;
+        }
         static int StreamTest(string[] args)
         {
             int chunks = args.Length > 1 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 300;
