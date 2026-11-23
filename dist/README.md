@@ -1,11 +1,16 @@
-# L2PointAI — 点云 3D 可视化 + AI 分析（Windows 单 exe）
+# L2PointAI：点云 3D 可视化 + AI 分析工具
 
-把 `export_l2_xyz.py` 导出的点云（或 L2 实时直采）渲染成三视图，连同客观统计一起发给
+该应用程序的功能是将由激光雷达输出的3D云图文件解算并将解算文件输出至AI，通过AI对3D云图进行分析。
+## 程序支持的3D云图输入方式：
+   ### 1.（目前仅支持Unitree L2激光雷达）RJ45局域网通信，需要对IP地址和网关进行配置。
+   ### 2.csv，txt，bag，ply点集文件。
+
+
+程序可以把由脚本 `export_l2_xyz.py`格式化导出的点云（或 L2 实时直采）渲染成三视图，连同客观统计一起发给
 **本地 Ollama** 或 **任意 OpenAI 兼容 API**，得到中文结论 + 结构化 JSON + Markdown 报告。
 
-- 语言/框架：C# / WinForms，目标 **.NET Framework 4.8**（Win10 20H2+ / Win11 自带）
-- 依赖：**零 NuGet 包**、零第三方 DLL、单文件 exe、不需要管理员权限
-- 渲染：CPU z-buffer 软件光栅化（`src/Renderer.cs`），无 GPU/OpenGL 依赖
+- 语言/框架：C# / WinForms，目标 **.NET Framework 4.8**
+- 渲染：CPU z-buffer 软件光栅化（`src/Renderer.cs`）
 - 已内嵌：应用图标、Win32 文件版本、DPI 感知清单（`dpiAware=true`）
 
 ---
@@ -13,33 +18,27 @@
 ## 1. 直接运行（分发包）
 
 ```
-dist\L2PointAI.exe            单文件，拷到任意机器双击即可
+dist\L2PointAI.exe            单文件程序，拷到任意机器双击即可
 dist\L2PointAI-1.0.0-portable.zip   便携包：exe + 使用说明 + 示例点云 + SHA256
 ```
 
-只依赖系统自带的 .NET Framework 4.8（Win10 20H2 以后、Win11 均内置）。
-老系统若提示缺少 .NET，装一次官方 4.8 运行库即可。
+只依赖系统自带的 .NET Framework 4.8。若提示缺少 .NET，请安装.NET Framework 4.8 运行库。
 
-**学习/试玩**：菜单“文件 → 打开点云…”，选 `sample\示例房间_11k点.csv`。
+**示例点云文件**：菜单“文件 → 打开点云…”，选 `sample\示例房间_11k点.csv`。
 
 ## 2. 用 Visual Studio 编译
 
-> **VS 2026 请打开 `L2PointAI.sln`（不是 .csproj）。**
-> `.csproj` 已改为 SDK 格式，VS 2022/2026 直接支持；旧格式保留为 `L2PointAI.Legacy.csproj`。
-> 双击 .csproj「没反应」的原因与排查见 [docs/VS2026-导入指南.md](docs/VS2026-导入指南.md)。
+> **请打开 `L2PointAI.sln`。**
+
 
 安装 **Visual Studio 2022 / 2026 Community**，只需勾选一个工作负载：
 
-| 安装项 | 是否需要 |
-|---|---|
-| **“.NET 桌面开发”** | ✅ 必装（含 WinForms 设计器 + C# 编译器 + .NET Framework 4.8 支持） |
-| 单个组件里的 **.NET Framework 4.8 targeting pack / SDK** | ✅ 若未随工作负载勾上，手动补 |
-| .NET 8/9 SDK、ASP.NET、C++、UWP、MAUI、NuGet 包 | ❌ 都不需要 |
+| 安装项 |
+|---|
+| **“.NET 桌面开发”** | 
 
-装完双击 `L2PointAI.csproj` → `F5`。目标框架 `net48`、`LangVersion=5`，所以同一份源码
-既能用 VS 编，也能用系统自带 `csc.exe` 编。
 
-## 3. 不装 VS 也能编译
+## 3. 不安装 VS 的编译方法
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1     # -> bin\L2PointAI.exe
@@ -185,22 +184,7 @@ L2PointAI.exe --shot ui.png ollama cloud.csv 0 none 1 1100 740   # 指定窗口�
 | 模型答复被截断 | Tokens 太小（默认 2048），调大；或减少附图 |
 
 ## 14. 杀软误报与代码签名
-
-Windows Defender 对未签名、零信誉的新 exe 容易出现 `Trojan:Win32/Wacatac.B!ml` 之类误报（`!ml` 为机器学习判定）。
-
-- **签名解决的是**：SmartScreen“未知发布者”、企业 AppLocker/WDAC 策略拦截
-- **签名不解决**：反病毒启发式误报 → 首选免费误报申诉
-- 自签名只在导入根证书的机器有效，对外分发仍显示不受信任
-
-签名脚本（自动找 signtool、SHA256 + 时间戳）：
-
-```powershell
-.\sign.ps1 -Pfx .\codesign.pfx -Password 口令     # 购买的 OV/EV 证书
-.\sign.ps1 -Thumbprint <指纹>                      # 证书已在存储中
-.\sign.ps1 -SelfSigned                             # 内部测试用
-```
-
-详细说明（场景选择、成本、申诉步骤、排除项）见 [docs/签名与误报处理.md](docs/签名与误报处理.md)。
+详细说明请见 [docs/签名与误报处理.md](docs/签名与误报处理.md)。
 ## 15. 已修复的关键问题
 
 | 时间 | 问题 | 根因 | 修复 |
@@ -210,11 +194,5 @@ Windows Defender 对未签名、零信誉的新 exe 容易出现 `Trojan:Win32/W
 | 2026-11-22 | 思考型模型结论为空 | `num_predict` 被 thinking 吃光（`done_reason=length`） | 默认 `think:false`，并可三档切换；空答复自动回退思考内容 |
 
 回归命令：`--streamtest 400 3000`（流式 UI 压力测试）、`--uitest`、`--selftest`。
-## 16. 重新打包
 
-```powershell
-.\package.ps1            # 生成 dist\L2PointAI.exe、zip、SHA256SUMS.txt
-.\package.ps1 -NoZip     # 只要 exe
-```
-
-版本号来自 `src\AssemblyInfo.cs` 与 `assets\version.rc` 两处，改版本时请同步。
+版本号来自 `src\AssemblyInfo.cs` 与 `assets\version.rc` 两处，请在新版本编译时同步。
