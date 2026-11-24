@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>C70E 敞车 · 点云脱轨模拟编辑器</title>
+<style>
+  :root{
+    --bg:#070b11; --panel:#0e141d; --panel2:#131b26; --line:#22303f;
+    --text:#dbe6f2; --dim:#7d8fa3; --accent:#22d3ee; --warn:#f5c542; --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--bg); color:var(--text); overflow:hidden;
+    font:13px/1.6 "Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{display:flex;flex-direction:column;height:100%}
+  header{
+    display:flex;align-items:center;gap:14px;padding:9px 16px;
+    background:linear-gradient(180deg,#0d151f,#0a1017);border-bottom:1px solid var(--line);
+    flex:0 0 auto;z-index:5;
+  }
+  .logo{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#22d3ee,#7c3aed);
+    display:grid;place-items:center;font-weight:700;color:#06121a;font-size:13px}
+  h1{font-size:14px;margin:0;font-weight:600;letter-spacing:.5px}
+  h1 span{color:var(--dim);font-weight:400;margin-left:8px;font-size:12px}
+  .grow{flex:1}
+  .badge{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .badge b{color:var(--text);font-weight:600}
+
+  #body{display:flex;flex:1;min-height:0}
+  aside{
+    width:330px;flex:0 0 330px;background:var(--panel);border-right:1px solid var(--line);
+    overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;
+  }
+  aside::-webkit-scrollbar{width:9px}
+  aside::-webkit-scrollbar-thumb{background:#233242;border-radius:9px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 11px}
+  .card h2{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);margin:0 0 6px;font-weight:600}
+  .row{display:flex;align-items:center;gap:8px;margin:4px 0}
+  .row .lbl{flex:0 0 62px;color:var(--dim);font-size:12px}
+  .row .val{flex:0 0 62px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:var(--accent)}
+  input[type=range]{-webkit-appearance:none;flex:1;height:3px;background:#243244;border-radius:2px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);border:2px solid #06131a;cursor:grab}
+  .sw{display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 6px;border-radius:7px;user-select:none}
+  .sw:hover{background:#1a2532}
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+  .sw .cnt{margin-left:auto;color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums}
+  .sw input{accent-color:var(--accent);margin:0}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  button{
+    font:inherit;color:var(--text);background:#1a2532;border:1px solid #2a3a4d;border-radius:8px;
+    padding:6px 9px;cursor:pointer;transition:.15s;font-size:12px;
+  }
+  button:hover{background:#22303f;border-color:#3a4f66}
+  button.primary{background:linear-gradient(180deg,#1ea7c0,#15889e);border-color:#25c3dd;color:#eafcff;font-weight:600}
+  button.primary:hover{filter:brightness(1.12)}
+  button.danger{background:#2a1618;border-color:#5a2a2e;color:#ffb3b3}
+  button.danger:hover{background:#3a1c20}
+  button.wide{grid-column:1/-1}
+  button:disabled{opacity:.45;cursor:not-allowed}
+
+  #viewport{flex:1;position:relative;min-width:0;background:#05080c}
+  canvas{display:block;width:100%;height:100%}
+  #hint{position:absolute;left:14px;bottom:12px;font-size:11.5px;color:#8aa0b5;
+    background:rgba(7,12,18,.72);border:1px solid var(--line);padding:6px 10px;border-radius:7px;pointer-events:none}
+  #hint b{color:var(--accent);font-weight:600}
+  #readout{position:absolute;right:14px;top:12px;background:rgba(7,12,18,.82);border:1px solid var(--line);
+    border-radius:9px;padding:9px 12px;font-size:12px;min-width:170px;backdrop-filter:blur(6px)}
+  #readout div{display:flex;justify-content:space-between;gap:14px;margin:3px 0;color:var(--dim)}
+  #readout b{color:var(--text);font-variant-numeric:tabular-nums;font-weight:600}
+  #readout .state{color:var(--warn)}
+  #selRect{position:absolute;border:1px dashed var(--accent);background:rgba(34,211,238,.10);
+    pointer-events:none;display:none;z-index:3}
+  #selBar{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:none;gap:8px;
+    background:rgba(10,17,25,.94);border:1px solid #2a3a4d;border-radius:9px;padding:8px 10px;z-index:4;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);align-items:center;font-size:12px}
+  #selBar.show{display:flex}
+  #selBar .n{color:var(--accent);font-weight:600}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--dim);padding-top:2px}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+  .note{font-size:11px;color:#6e8096;line-height:1.55}
+  kbd{background:#1b2733;border:1px solid #2c3d50;border-bottom-width:2px;border-radius:4px;padding:0 4px;font-size:10.5px}
+  .file{display:none}
+  .tip{display:flex;gap:6px;align-items:center;color:var(--accent);font-size:11.5px;margin-bottom:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">P</div>
+    <h1>C70E 敞车 · 点云脱轨模拟编辑器<span>鼠标直接拖动车体</span></h1>
+    <div class="grow"></div>
+    <div class="badge">点数 <b id="hudCount">-</b></div>
+    <div class="badge">车体尺寸 <b id="hudSize">-</b></div>
+    <div class="badge" id="hudFps">-</div>
+  </header>
+
+  <div id="body">
+    <aside>
+      <div class="card">
+        <h2>分类图层</h2>
+        <label class="sw"><input type="checkbox" id="tWagon" checked><span class="dot" style="background:#22d3ee"></span>车体（可拖动）<span class="cnt" id="cWagon">-</span></label>
+        <label class="sw"><input type="checkbox" id="tRail" checked><span class="dot" style="background:#f5c542"></span>钢轨 / 轨道<span class="cnt" id="cRail">-</span></label>
+        <label class="sw"><input type="checkbox" id="tGround" checked><span class="dot" style="background:#7b8794"></span>地面 / 道砟<span class="cnt" id="cGround">-</span></label>
+        <label class="sw"><input type="checkbox" id="tOther" checked><span class="dot" style="background:#4b5f78"></span>环境 / 其他<span class="cnt" id="cOther">-</span></label>
+        <label class="sw"><input type="checkbox" id="tGhost" checked><span class="dot" style="background:#94a3b8"></span>显示原始位置（线框）</label>
+      </div>
+
+      <div class="card">
+        <h2>位移（米）</h2>
+        <div class="row"><span class="lbl">横向 Δy</span><input type="range" id="sLat" min="-6" max="6" step="0.01" value="0"><span class="val" id="vLat">0.00</span></div>
+        <div class="row"><span class="lbl">垂向 Δz</span><input type="range" id="sUp" min="-1.5" max="1.0" step="0.01" value="0"><span class="val" id="vUp">0.00</span></div>
+        <div class="row"><span class="lbl">纵向 Δx</span><input type="range" id="sLong" min="-12" max="12" step="0.01" value="0"><span class="val" id="vLong">0.00</span></div>
+      </div>
+
+      <div class="card">
+        <h2>姿态（度）</h2>
+        <div class="row"><span class="lbl">侧倾 roll</span><input type="range" id="sRoll" min="-60" max="60" step="0.5" value="0"><span class="val" id="vRoll">0.0</span></div>
+        <div class="row"><span class="lbl">偏航 yaw</span><input type="range" id="sYaw" min="-30" max="30" step="0.5" value="0"><span class="val" id="vYaw">0.0</span></div>
+        <div class="row"><span class="lbl">点头 pitch</span><input type="range" id="sPitch" min="-10" max="10" step="0.5" value="0"><span class="val" id="vPitch">0.0</span></div>
+      </div>
+
+      <div class="card">
+        <h2>脱轨预设</h2>
+        <div class="btns">
+          <button id="pReset" class="wide">↺ 复位到正常轨行</button>
+          <button data-p="climb">轮缘爬轨</button>
+          <button data-p="derail">脱轨倾倒</button>
+          <button data-p="severe" class="danger">严重脱轨</button>
+          <button data-p="anim" class="primary">▶ 播放动画</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>编辑工具</h2>
+        <div class="btns">
+          <button id="btnSelect">▭ 框选点</button>
+          <button id="btnGizmo">⇱ 精确拖动轴</button>
+        </div>
+        <div class="btns" style="margin-top:6px">
+          <button id="btnImport">导入 CSV…</button>
+          <button id="btnExport">导出 CSV</button>
+        </div>
+        <input type="file" id="fileInput" class="file" accept=".csv,.txt,.xyz">
+        <div class="note" style="margin-top:7px">框选：进入框选模式后拖矩形，再把选中的点「加入车体」或「归为环境」。</div>
+      </div>
+
+      <div class="card">
+        <h2>视角</h2>
+        <div class="btns">
+          <button data-view="iso">等轴测</button>
+          <button data-view="side">侧视</button>
+          <button data-view="front">端视</button>
+          <button data-view="top">俯视</button>
+        </div>
+        <div class="legend" style="margin-top:9px">
+          <span><i style="background:#22d3ee"></i>车体</span>
+          <span><i style="background:#f5c542"></i>钢轨</span>
+          <span><i style="background:#7b8794"></i>地面</span>
+          <span><i style="background:#4b5f78"></i>环境</span>
+        </div>
+      </div>
+    </aside>
+
+    <main id="viewport">
+      <canvas id="cv"></canvas>
+      <div id="readout">
+        <div><span>脱轨状态</span><b class="state" id="roState">正常轨行</b></div>
+        <div><span>横向偏移</span><b id="roLat">0.00 m</b></div>
+        <div><span>轮轨高差</span><b id="roUp">0.00 m</b></div>
+        <div><span>侧倾角</span><b id="roRoll">0.0°</b></div>
+        <div><span>选中</span><b id="roSel">0 点</b></div>
+      </div>
+      <div id="selRect"></div>
+      <div id="selBar">
+        <span>已框选 <span class="n" id="selN">0</span> 点</span>
+        <button id="selToWagon">→ 加入车体</button>
+        <button id="selToEnv">→ 归为环境</button>
+        <button id="selClear">取消</button>
+      </div>
+      <div id="hint">
+        <b>拖动车体</b>=平移　<b>Shift</b>+拖动=升降　<b>Alt</b>+拖动=旋转　空白处左键=转视角　右键=平移　滚轮=缩放
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="vendor/TransformControls.js"></script>
+<script src="data.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------------- 1. 解码内嵌点云 ---------------- */
+const CLS = { OTHER:0, GROUND:1, RAIL:2, WAGON:3 };
+
+function b64ToBytes(b64){
+  const bin = atob(b64);
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i=0;i<len;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+const DATA = window.RAIL_CLOUD;
+let N = DATA.n;
+let posData = null;      // Float32Array(n*3) three 坐标（原始位置）
+let clsData = null;      // Uint8Array(n)
+let intenData = null;    // Uint8Array(n)
+
+function decodeEmbedded(){
+  const q = new Int16Array(b64ToBytes(DATA.pos).buffer);
+  const n = DATA.n;
+  const p = new Float32Array(n*3);
+  const mn = DATA.min;
+  for (let i=0;i<n;i++){
+    const dx = mn[0] + q[i*3]  * DATA.step;
+    const dy = mn[1] + q[i*3+1]* DATA.step;
+    const dz = mn[2] + q[i*3+2]* DATA.step;
+    p[i*3]   = dx;
+    p[i*3+1] = dz;   // three Y = 数据 z（上）
+    p[i*3+2] = -dy;  // three Z = -数据 y
+  }
+  return {
+    pos: p,
+    cls: new Uint8Array(b64ToBytes(DATA.cls)),
+    inten: new Uint8Array(b64ToBytes(DATA.inten))
+  };
+}
+
+/* ---------------- 2. 自动分类（导入新 CSV 时复用） ---------------- */
+function classifyAll(pos, n){
+  const cls = new Uint8Array(n);
+  for (let i=0;i<n;i++){
+    const x = pos[i*3];
+    const y = -pos[i*3+2];   // 数据 y
+    const up = pos[i*3+1];   // 数据 z
+    const ay = Math.abs(y);
+    if (ay <= 1.65 && up >= 0.18 && Math.abs(x) <= 7.05) cls[i] = CLS.WAGON;
+    else if (ay >= 0.60 && ay <= 0.86 && up >= -0.5 && up < 0.25) cls[i] = CLS.RAIL;
+    else if ((up < 0.25 && ay <= 2.6) || up < -0.5) cls[i] = CLS.GROUND;
+    else cls[i] = CLS.OTHER;
+  }
+  return cls;
+}
+
+/* ---------------- 3. 场景 ---------------- */
+const canvas = document.getElementById("cv");
+const viewport = document.getElementById("viewport");
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setClearColor(0x05080c, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x05080c, 0.006);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 800);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.96;
+controls.minDistance = 2;
+controls.maxDistance = 160;
+
+const COLORS = {
+  wagon:0x22d3ee, rail:0xf5c542, ground:0x7b8794, other:0x4b5f78, ghost:0x8fa3b8
+};
+
+/* 单色点材质 */
+function makePointMaterial(color, opacity, size){
+  return new THREE.ShaderMaterial({
+    uniforms:{
+      uColor:{value:new THREE.Color(color)},
+      uOpacity:{value:opacity},
+      uSize:{value:size},
+      uPR:{value:renderer.getPixelRatio()}
+    },
+    vertexShader:`
+      uniform float uSize; uniform float uPR;
+      void main(){
+        vec4 mv = modelViewMatrix * vec4(position,1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = clamp(uSize * uPR * (40.0 / max(2.0, -mv.z)), 1.0, 16.0);
+      }`,
+    fragmentShader:`
+      uniform vec3 uColor; uniform float uOpacity;
+      void main(){
+        vec2 c = gl_PointCoord - vec2(0.5);
+        if (dot(c,c) > 0.25) discard;
+        gl_FragColor = vec4(uColor, uOpacity);
+      }`,
+    transparent: opacity < 1.0,
+    depthWrite: opacity >= 1.0
+  });
+}
+
+/* 车体材质：按局部高度渐变 */
+function makeWagonMaterial(size){
+  return new THREE.ShaderMaterial({
+    uniforms:{
+      uOpacity:{value:1.0},
+      uSize:{value:size},
+      uPR:{value:renderer.getPixelRatio()}
+    },
+    vertexShader:`
+      attribute vec3 color;
+      varying vec3 vColor;
+      uniform float uSize; uniform float uPR;
+      void main(){
+        vec4 mv = modelViewMatrix * vec4(position,1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = clamp(uSize * uPR * (40.0 / max(2.0, -mv.z)), 1.0, 16.0);
+        vColor = color;
+      }`,
+    fragmentShader:`
+      varying vec3 vColor; uniform float uOpacity;
+      void main(){
+        vec2 c = gl_PointCoord - vec2(0.5);
+        if (dot(c,c) > 0.25) discard;
+        gl_FragColor = vec4(vColor, uOpacity);
+      }`,
+    transparent:false, depthWrite:true
+  });
+}
+
+/* ---------------- 4. 点云对象 ---------------- */
+let pivot = new THREE.Vector3();
+const groupWagon = new THREE.Group();
+const clouds = {};
+let ghost = null;
+let hitMesh = null;                    // 用于鼠标拾取的车体包围盒（不可见）
+const idxByClass = [[],[],[],[]];
+
+const ptMat = {
+  wagon:  makeWagonMaterial(2.0),
+  rail:   makePointMaterial(COLORS.rail, 1.0, 1.9),
+  ground: makePointMaterial(COLORS.ground, 1.0, 1.7),
+  other:  makePointMaterial(COLORS.other, 0.9, 1.6),
+  ghost:  makePointMaterial(COLORS.ghost, 0.22, 1.8)
+};
+
+function buildIndex(){
+  for (let c=0;c<4;c++) idxByClass[c].length = 0;
+  for (let i=0;i<N;i++) idxByClass[clsData[i]].push(i);
+}
+
+function computePivot(){
+  const box = new THREE.Box3();
+  const v = new THREE.Vector3();
+  let found = false;
+  for (let i=0;i<N;i++){
+    if (clsData[i] !== CLS.WAGON) continue;
+    v.set(posData[i*3], posData[i*3+1], posData[i*3+2]);
+    box.expandByPoint(v); found = true;
+  }
+  if (!found) box.set(new THREE.Vector3(-7,0,0), new THREE.Vector3(7,3,0));
+  box.getCenter(pivot);
+  window.__wagonBox = box;
+  ensureHitBox();
+}
+
+function ensureHitBox(){
+  if (hitMesh){
+    groupWagon.remove(hitMesh);
+    hitMesh.geometry.dispose();
+    hitMesh.material.dispose();
+    hitMesh = null;
+  }
+  const box = window.__wagonBox;
+  if (!box) return;
+  const s = box.getSize(new THREE.Vector3());
+  hitMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(Math.max(0.2,s.x), Math.max(0.2,s.y), Math.max(0.2,s.z)),
+    new THREE.MeshBasicMaterial({ visible:false })
+  );
+  hitMesh.position.set(0,0,0);
+  groupWagon.add(hitMesh);
+}
+
+function geometryFromIndices(idxs){
+  const g = new THREE.BufferGeometry();
+  const arr = new Float32Array(idxs.length*3);
+  for (let k=0;k<idxs.length;k++){
+    const i = idxs[k];
+    arr[k*3]   = posData[i*3];
+    arr[k*3+1] = posData[i*3+1];
+    arr[k*3+2] = posData[i*3+2];
+  }
+  g.setAttribute("position", new THREE.BufferAttribute(arr,3));
+  g.computeBoundingSphere();
+  return g;
+}
+
+function geometryWagonLocal(){
+  const idxs = idxByClass[CLS.WAGON];
+  const g = new THREE.BufferGeometry();
+  const arr = new Float32Array(idxs.length*3);
+  const col = new Float32Array(idxs.length*3);
+  const box = window.__wagonBox;
+  const y0 = box ? box.min.y : 0, y1 = box ? box.max.y : 3.3;
+  const span = Math.max(0.001, y1 - y0);
+  const cBot = new THREE.Color(0x0a5f7a), cTop = new THREE.Color(0x5fd6ee);
+  const tmp = new THREE.Color();
+  for (let k=0;k<idxs.length;k++){
+    const i = idxs[k];
+    arr[k*3]   = posData[i*3]   - pivot.x;
+    arr[k*3+1] = posData[i*3+1] - pivot.y;
+    arr[k*3+2] = posData[i*3+2] - pivot.z;
+    let t = (posData[i*3+1] - y0) / span;
+    t = Math.max(0, Math.min(1, t));
+    tmp.copy(cBot).lerp(cTop, Math.pow(t, 0.85));
+    col[k*3] = tmp.r; col[k*3+1] = tmp.g; col[k*3+2] = tmp.b;
+  }
+  g.setAttribute("position", new THREE.BufferAttribute(arr,3));
+  g.setAttribute("color", new THREE.BufferAttribute(col,3));
+  g.computeBoundingSphere();
+  return g;
+}
+
+function rebuildAll(){
+  buildIndex();
+  for (const key of ["wagon","rail","ground","other"]){
+    if (clouds[key]){
+      if (key === "wagon") groupWagon.remove(clouds[key]);
+      else scene.remove(clouds[key]);
+      clouds[key].geometry.dispose();
+    }
+  }
+  const map = {wagon:CLS.WAGON, rail:CLS.RAIL, ground:CLS.GROUND, other:CLS.OTHER};
+  for (const key in map){
+    const idxs = idxByClass[map[key]];
+    const geo = (key === "wagon") ? geometryWagonLocal() : geometryFromIndices(idxs);
+    const p = new THREE.Points(geo, ptMat[key]);
+    p.frustumCulled = false;
+    clouds[key] = p;
+    if (key === "wagon") groupWagon.add(p);
+    else scene.add(p);
+  }
+  updateCounts();
+  updateGhost();
+}
+
+/* 残影：原始车体位置的线框 */
+function updateGhost(){
+  if (ghost){ scene.remove(ghost); ghost.geometry.dispose(); ghost = null; }
+  const box = window.__wagonBox;
+  const size = box.getSize(new THREE.Vector3());
+  const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x, size.y, size.z));
+  ghost = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+    color:0x7d93a8, transparent:true, opacity:0.55
+  }));
+  ghost.position.copy(box.getCenter(new THREE.Vector3()));
+  ghost.frustumCulled = false;
+  scene.add(ghost);
+  ghost.visible = document.getElementById("tGhost").checked;
+}
+
+/* ---------------- 5. 变换状态 ---------------- */
+const state = { lat:0, up:0, lon:0, roll:0, yaw:0, pitch:0 };
+const clamp = (v,a,b)=>Math.max(a, Math.min(b, v));
+
+function applyState(){
+  groupWagon.position.set(pivot.x + state.lon, pivot.y + state.up, pivot.z - state.lat);
+  groupWagon.rotation.order = "YXZ";
+  groupWagon.rotation.set(
+    THREE.MathUtils.degToRad(state.roll),
+    THREE.MathUtils.degToRad(state.yaw),
+    THREE.MathUtils.degToRad(state.pitch)
+  );
+  updateReadout();
+}
+
+function updateReadout(){
+  document.getElementById("roLat").textContent  = state.lat.toFixed(2)+" m";
+  document.getElementById("roUp").textContent   = state.up.toFixed(2)+" m";
+  document.getElementById("roRoll").textContent = state.roll.toFixed(1)+"°";
+  const absLat = Math.abs(state.lat);
+  let s;
+  if (dragState()) s = "拖动中";
+  else if (absLat < 0.05 && Math.abs(state.up) < 0.02 && Math.abs(state.roll) < 0.5) s = "正常轨行";
+  else if (absLat < 0.3 && Math.abs(state.roll) < 8) s = "轮缘爬轨";
+  else if (absLat < 0.9) s = "已脱轨";
+  else s = "严重脱轨";
+  document.getElementById("roState").textContent = s;
+  document.getElementById("roSel").textContent = selIdx.length + " 点";
+}
+
+/* ---------------- 6. 相机 / 视角 ---------------- */
+const VIEWS = {
+  iso:   (c)=>[ c.x + 16, c.y + 11, c.z - 20 ],
+  side:  (c)=>[ c.x,      c.y + 1.5, c.z - 26 ],
+  front: (c)=>[ c.x + 24, c.y + 2.5, c.z + 0.01 ],
+  top:   (c)=>[ c.x,      c.y + 34,  c.z + 1 ]
+};
+
+function setView(name){
+  const t = controls.target;
+  const p = VIEWS[name](t);
+  camera.position.set(p[0], p[1], p[2]);
+  camera.up.set(0,1,0);
+  controls.update();
+}
+
+function fitCamera(){
+  const box = window.__wagonBox || new THREE.Box3(new THREE.Vector3(-15,-1,-3), new THREE.Vector3(15,3,3));
+  controls.target.copy(box.getCenter(new THREE.Vector3()));
+  setView("iso");
+}
+
+/* ---------------- 7. UI 绑定 ---------------- */
+const $ = (id)=>document.getElementById(id);
+const sliders = {
+  lat:  {el:$("sLat"),  val:$("vLat"),  key:"lat",  fmt:v=>v.toFixed(2)},
+  up:   {el:$("sUp"),   val:$("vUp"),   key:"up",   fmt:v=>v.toFixed(2)},
+  lon:  {el:$("sLong"), val:$("vLong"), key:"lon",  fmt:v=>v.toFixed(2)},
+  roll: {el:$("sRoll"), val:$("vRoll"), key:"roll", fmt:v=>v.toFixed(1)},
+  yaw:  {el:$("sYaw"),  val:$("vYaw"),  key:"yaw",  fmt:v=>v.toFixed(1)},
+  pitch:{el:$("sPitch"),val:$("vPitch"),key:"pitch",fmt:v=>v.toFixed(1)}
+};
+
+for (const k in sliders){
+  const s = sliders[k];
+  s.el.addEventListener("input", ()=>{
+    state[s.key] = parseFloat(s.el.value);
+    s.val.textContent = s.fmt(state[s.key]);
+    applyState();
+  });
+}
+
+function syncSliders(){
+  for (const k in sliders){
+    const s = sliders[k];
+    s.el.value = state[s.key];
+    s.val.textContent = s.fmt(state[s.key]);
+  }
+}
+
+function setState(o, animate){
+  const target = Object.assign({}, state, o);
+  if (!animate){ Object.assign(state, target); syncSliders(); applyState(); return; }
+  const from = Object.assign({}, state);
+  const t0 = performance.now(), dur = 1100;
+  function step(){
+    const k = Math.min(1, (performance.now()-t0)/dur);
+    const e = k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+    for (const key in target) state[key] = from[key] + (target[key]-from[key])*e;
+    syncSliders(); applyState();
+    if (k<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+const PRESETS = {
+  reset:  {lat:0, up:0, lon:0, roll:0, yaw:0, pitch:0},
+  climb:  {lat:0.22, up:-0.03, lon:0, roll:5, yaw:0.6, pitch:0},
+  derail: {lat:0.72, up:-0.30, lon:0.4, roll:26, yaw:2.5, pitch:1.5},
+  severe: {lat:1.15, up:-0.55, lon:1.2, roll:40, yaw:6, pitch:4}
+};
+
+$("pReset").onclick = ()=> setState(PRESETS.reset, false);
+document.querySelectorAll("[data-p]").forEach(btn=>{
+  btn.onclick = ()=>{
+    const p = PRESETS[btn.dataset.p];
+    if (p) { setState(p, true); return; }
+    if (btn.dataset.p === "anim"){
+      setState(PRESETS.reset, false);
+      setTimeout(()=> setState(PRESETS.derail, true), 60);
+    }
+  };
+});
+
+for (const key of ["wagon","rail","ground","other"]){
+  const el = $("t"+(key[0].toUpperCase()+key.slice(1)));
+  el.onchange = ()=>{ if (clouds[key]) clouds[key].visible = el.checked; };
+}
+$("tGhost").onchange = (e)=>{ if (ghost) ghost.visible = e.target.checked; };
+
+document.querySelectorAll("[data-view]").forEach(b=>{
+  b.onclick = ()=> setView(b.dataset.view);
+});
+
+/* ---------------- 8. 精确拖动轴（可选） ---------------- */
+let gizmo = null, gizmoOn = false;
+try{
+  gizmo = new THREE.TransformControls(camera, renderer.domElement);
+  gizmo.setSize(0.9);
+  gizmo.addEventListener("dragging-changed", e=>{ controls.enabled = !e.value; });
+  gizmo.addEventListener("objectChange", ()=>{
+    const off = groupWagon.position.clone().sub(pivot);
+    state.lon = clamp(off.x, -12, 12);
+    state.up  = clamp(off.y, -1.5, 1.0);
+    state.lat = clamp(-off.z, -6, 6);
+    state.roll  = clamp(THREE.MathUtils.radToDeg(groupWagon.rotation.x), -60, 60);
+    state.yaw   = clamp(THREE.MathUtils.radToDeg(groupWagon.rotation.y), -30, 30);
+    state.pitch = clamp(THREE.MathUtils.radToDeg(groupWagon.rotation.z), -10, 10);
+    syncSliders(); updateReadout();
+  });
+  scene.add(gizmo);
+  gizmo.attach(groupWagon);
+  gizmo.visible = false;
+}catch(err){
+  console.warn("TransformControls 不可用", err);
+  gizmo = null;
+}
+
+$("btnGizmo").onclick = ()=>{
+  if (!gizmo) return;
+  gizmoOn = !gizmoOn;
+  gizmo.visible = gizmoOn;
+  gizmo.detach(); if (gizmoOn) gizmo.attach(groupWagon);
+  $("btnGizmo").textContent = gizmoOn ? "✕ 隐藏拖动轴" : "⇱ 精确拖动轴";
+  $("btnGizmo").style.borderColor = gizmoOn ? "#22d3ee" : "";
+};
+
+/* ---------------- 8.5 鼠标直接拖动车体 ---------------- */
+const raycaster = new THREE.Raycaster();
+let drag = null;
+let hoverT = 0;
+
+function dragState(){ return drag; }
+
+function pointerNdc(e){
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: ((e.clientX - r.left) / r.width) * 2 - 1,
+    y: -((e.clientY - r.top) / r.height) * 2 + 1
+  };
+}
+
+function hitWagon(e){
+  if (!hitMesh) return false;
+  raycaster.setFromCamera(pointerNdc(e), camera);
+  return raycaster.intersectObject(hitMesh, false).length > 0;
+}
+
+function worldPerPixel(){
+  const dist = camera.position.distanceTo(controls.target);
+  const h = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+  return h / Math.max(1, viewport.clientHeight);
+}
+
+window.addEventListener("pointerdown", (e)=>{
+  if (e.button !== 0 || e.target !== canvas) return;
+  if (selMode) return;
+  if (gizmo && gizmoOn && (gizmo.dragging || gizmo.axis)) return;
+  if (!hitWagon(e)) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  controls.enabled = false;
+
+  raycaster.setFromCamera(pointerNdc(e), camera);
+  const plane = new THREE.Plane(new THREE.Vector3(0,1,0), -groupWagon.position.y);
+  const hit = new THREE.Vector3();
+  const ok = raycaster.ray.intersectPlane(plane, hit);
+
+  drag = {
+    mode: e.altKey ? "rotate" : (e.shiftKey ? "vertical" : "move"),
+    sx: e.clientX, sy: e.clientY,
+    planeY: groupWagon.position.y,
+    p0: ok ? hit.clone() : null,
+    start: Object.assign({}, state)
+  };
+  canvas.style.cursor = "grabbing";
+  updateReadout();
+}, true);
+
+window.addEventListener("pointermove", (e)=>{
+  if (drag){
+    e.preventDefault();
+    e.stopPropagation();
+    if (drag.mode === "move" && drag.p0){
+      raycaster.setFromCamera(pointerNdc(e), camera);
+      const p = new THREE.Vector3();
+      const plane = new THREE.Plane(new THREE.Vector3(0,1,0), -drag.planeY);
+      if (raycaster.ray.intersectPlane(plane, p)){
+        state.lon = clamp(drag.start.lon + (p.x - drag.p0.x), -12, 12);
+        state.lat = clamp(drag.start.lat - (p.z - drag.p0.z), -6, 6);
+      }
+    } else if (drag.mode === "vertical"){
+      const wpp = worldPerPixel();
+      state.up = clamp(drag.start.up - (e.clientY - drag.sy) * wpp, -1.5, 1.0);
+    } else {
+      state.yaw  = clamp(drag.start.yaw  + (e.clientX - drag.sx) * 0.2, -30, 30);
+      state.roll = clamp(drag.start.roll + (e.clientY - drag.sy) * 0.25, -60, 60);
+    }
+    syncSliders();
+    applyState();
+    return;
+  }
+  if (e.target === canvas && !selMode){
+    const now = performance.now();
+    if (now - hoverT > 90){
+      hoverT = now;
+      canvas.style.cursor = hitWagon(e) ? "grab" : "";
+    }
+  }
+}, true);
+
+function endDrag(e){
+  if (!drag) return;
+  if (e){ e.stopPropagation(); }
+  drag = null;
+  controls.enabled = !selMode;
+  canvas.style.cursor = "";
+  updateReadout();
+}
+window.addEventListener("pointerup", endDrag, true);
+window.addEventListener("pointercancel", endDrag, true);
+
+/* ---------------- 9. 框选 ---------------- */
+let selMode = false;
+let selIdx = [];
+let dragStart = null;
+const rectEl = $("selRect");
+const ndc = new THREE.Vector3(), wp = new THREE.Vector3();
+
+function isVisible(c){
+  const key = ["other","ground","rail","wagon"][c];
+  return clouds[key] ? clouds[key].visible : true;
+}
+
+function screenOf(i){
+  if (clsData[i] === CLS.WAGON){
+    wp.set(posData[i*3], posData[i*3+1], posData[i*3+2]).applyMatrix4(groupWagon.matrixWorld);
+  } else {
+    wp.set(posData[i*3], posData[i*3+1], posData[i*3+2]);
+  }
+  ndc.copy(wp).project(camera);
+  return {x:(ndc.x*0.5+0.5), y:(-ndc.y*0.5+0.5), z:ndc.z};
+}
+
+function doSelect(x0,y0,x1,y1){
+  groupWagon.updateMatrixWorld(true);
+  const W = viewport.clientWidth, H = viewport.clientHeight;
+  const ax=Math.min(x0,x1)/W, bx=Math.max(x0,x1)/W;
+  const ay=Math.min(y0,y1)/H, by=Math.max(y0,y1)/H;
+  const out = [];
+  for (let i=0;i<N;i++){
+    if (!isVisible(clsData[i])) continue;
+    const s = screenOf(i);
+    if (s.z < -1 || s.z > 1) continue;
+    if (s.x>=ax && s.x<=bx && s.y>=ay && s.y<=by) out.push(i);
+  }
+  selIdx = out;
+  $("selN").textContent = out.length;
+  $("selBar").classList.add("show");
+  updateReadout();
+}
+
+$("btnSelect").onclick = ()=>{
+  selMode = !selMode;
+  $("btnSelect").textContent = selMode ? "✕ 退出框选" : "▭ 框选点";
+  $("btnSelect").style.borderColor = selMode ? "#22d3ee" : "";
+  controls.enabled = !selMode;
+  canvas.style.cursor = selMode ? "crosshair" : "";
+  if (!selMode) rectEl.style.display = "none";
+  if (!selMode && selIdx.length===0) $("selBar").classList.remove("show");
+};
+
+renderer.domElement.addEventListener("pointerdown", (e)=>{
+  if (!selMode || e.button !== 0) return;
+  const r = viewport.getBoundingClientRect();
+  dragStart = {x:e.clientX-r.left, y:e.clientY-r.top};
+  rectEl.style.display = "block";
+  rectEl.style.left = dragStart.x+"px"; rectEl.style.top = dragStart.y+"px";
+  rectEl.style.width = "0px"; rectEl.style.height = "0px";
+});
+
+renderer.domElement.addEventListener("pointermove", (e)=>{
+  if (!selMode || !dragStart) return;
+  const r = viewport.getBoundingClientRect();
+  const x = e.clientX-r.left, y = e.clientY-r.top;
+  rectEl.style.left = Math.min(x,dragStart.x)+"px";
+  rectEl.style.top  = Math.min(y,dragStart.y)+"px";
+  rectEl.style.width  = Math.abs(x-dragStart.x)+"px";
+  rectEl.style.height = Math.abs(y-dragStart.y)+"px";
+});
+
+renderer.domElement.addEventListener("pointerup", (e)=>{
+  if (!selMode || !dragStart) return;
+  const r = viewport.getBoundingClientRect();
+  const x = e.clientX-r.left, y = e.clientY-r.top;
+  const w = Math.abs(x-dragStart.x), h = Math.abs(y-dragStart.y);
+  rectEl.style.display = "none";
+  const s = dragStart; dragStart = null;
+  if (w < 4 && h < 4) return;
+  doSelect(s.x, s.y, x, y);
+});
+
+$("selClear").onclick = ()=>{
+  selIdx = [];
+  $("selBar").classList.remove("show");
+  $("selN").textContent = "0";
+  updateReadout();
+};
+
+function addToWagon(){
+  if (!selIdx.length) return;
+  groupWagon.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(groupWagon.matrixWorld).invert();
+  const v = new THREE.Vector3();
+  let k = 0;
+  for (const i of selIdx){
+    if (clsData[i] === CLS.WAGON) continue;
+    v.set(posData[i*3], posData[i*3+1], posData[i*3+2]).applyMatrix4(inv);
+    posData[i*3]   = v.x + pivot.x;
+    posData[i*3+1] = v.y + pivot.y;
+    posData[i*3+2] = v.z + pivot.z;
+    clsData[i] = CLS.WAGON;
+    k++;
+  }
+  selIdx = [];
+  $("selBar").classList.remove("show");
+  rebuildAll();
+  updateReadout();
+  console.log("加入车体", k, "点");
+}
+
+function moveToEnv(){
+  if (!selIdx.length) return;
+  groupWagon.updateMatrixWorld(true);
+  const v = new THREE.Vector3();
+  let k = 0;
+  for (const i of selIdx){
+    if (clsData[i] !== CLS.WAGON) continue;
+    v.set(posData[i*3], posData[i*3+1], posData[i*3+2]).applyMatrix4(groupWagon.matrixWorld);
+    posData[i*3] = v.x; posData[i*3+1] = v.y; posData[i*3+2] = v.z;
+    clsData[i] = CLS.OTHER;
+    k++;
+  }
+  selIdx = [];
+  $("selBar").classList.remove("show");
+  rebuildAll();
+  updateReadout();
+  console.log("归为环境", k, "点");
+}
+
+$("selToWagon").onclick = addToWagon;
+$("selToEnv").onclick = moveToEnv;
+
+/* ---------------- 10. 导入 / 导出 ---------------- */
+$("btnImport").onclick = ()=> $("fileInput").click();
+
+$("fileInput").onchange = (e)=>{
+  const f = e.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    const lines = String(rd.result).split(/\r?\n/);
+    let start = 0;
+    if (/[a-zA-Z]/.test(lines[0])) start = 1;
+    const rows = [];
+    for (let i=start;i<lines.length;i++){
+      const s = lines[i].trim();
+      if (!s) continue;
+      const parts = s.split(/[,;\s]+/);
+      if (parts.length < 3) continue;
+      const x=+parts[0], y=+parts[1], z=+parts[2];
+      if (!isFinite(x)||!isFinite(y)||!isFinite(z)) continue;
+      rows.push(x,y,z, parts[3]!==undefined ? (+parts[3]||0) : 0);
+    }
+    const n = rows.length/4;
+    if (!n) return;
+    const p = new Float32Array(n*3), it = new Uint8Array(n);
+    for (let i=0;i<n;i++){
+      p[i*3] = rows[i*4]; p[i*3+1] = rows[i*4+2]; p[i*3+2] = -rows[i*4+1];
+      it[i] = Math.max(0, Math.min(255, rows[i*4+3]|0));
+    }
+    N = n; posData = p; intenData = it; clsData = classifyAll(p, n);
+    resetScene();
+    console.log("导入", n, "点");
+  };
+  rd.readAsText(f);
+};
+
+function resetScene(){
+  for (const key of ["wagon","rail","ground","other"]){
+    if (clouds[key]){
+      if (key === "wagon") groupWagon.remove(clouds[key]);
+      else scene.remove(clouds[key]);
+      clouds[key].geometry.dispose();
+      delete clouds[key];
+    }
+  }
+  if (ghost){ scene.remove(ghost); ghost.geometry.dispose(); ghost = null; }
+  while (groupWagon.children.length) groupWagon.remove(groupWagon.children[0]);
+  computePivot();
+  rebuildAll();
+  Object.assign(state, PRESETS.reset);
+  syncSliders(); applyState();
+  fitCamera();
+  if (gizmo && gizmoOn) gizmo.attach(groupWagon);
+  $("hudCount").textContent = N.toLocaleString();
+}
+
+$("btnExport").onclick = ()=>{
+  const parts = ["x,y,z,intensity\n"];
+  groupWagon.updateMatrixWorld(true);
+  const v = new THREE.Vector3();
+  for (let i=0;i<N;i++){
+    let x, y, z;
+    if (clsData[i] === CLS.WAGON){
+      v.set(posData[i*3], posData[i*3+1], posData[i*3+2]).applyMatrix4(groupWagon.matrixWorld);
+      x = v.x; y = -v.z; z = v.y;
+    } else {
+      x = posData[i*3]; y = -posData[i*3+2]; z = posData[i*3+1];
+    }
+    parts.push(x.toFixed(4)+","+y.toFixed(4)+","+z.toFixed(4)+","+(intenData?intenData[i]:0)+"\n");
+  }
+  const blob = new Blob(parts, {type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "rail_wagon_derail.csv";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+};
+
+/* ---------------- 11. 键盘 ---------------- */
+window.addEventListener("keydown", (e)=>{
+  if (e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase();
+  if (k === "1") setView("iso");
+  else if (k === "2") setView("side");
+  else if (k === "3") setView("front");
+  else if (k === "4") setView("top");
+  else if (k === "r") setState(PRESETS.reset, false);
+});
+
+/* ---------------- 12. 初始化 ---------------- */
+function updateCounts(){
+  $("cWagon").textContent  = idxByClass[CLS.WAGON].length.toLocaleString();
+  $("cRail").textContent   = idxByClass[CLS.RAIL].length.toLocaleString();
+  $("cGround").textContent = idxByClass[CLS.GROUND].length.toLocaleString();
+  $("cOther").textContent  = idxByClass[CLS.OTHER].length.toLocaleString();
+}
+
+function onResize(){
+  const w = viewport.clientWidth, h = viewport.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+  const pr = renderer.getPixelRatio();
+  for (const k in ptMat) ptMat[k].uniforms.uPR.value = pr;
+}
+window.addEventListener("resize", onResize);
+
+let frames = 0, fpsT = performance.now();
+
+function loop(){
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  frames++;
+  if (now - fpsT > 700){
+    $("hudFps").innerHTML = "FPS <b>"+Math.round(frames*1000/(now-fpsT))+"</b>";
+    frames = 0; fpsT = now;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function boot(){
+  const dec = decodeEmbedded();
+  N = DATA.n;
+  posData = dec.pos; clsData = dec.cls; intenData = dec.inten;
+
+  scene.add(groupWagon);
+  computePivot();
+  rebuildAll();
+
+  const grid = new THREE.GridHelper(60, 60, 0x22313f, 0x141d26);
+  grid.position.y = -0.75;
+  scene.add(grid);
+  const ax = new THREE.AxesHelper(2.0);
+  ax.position.set(0,-0.75,0);
+  scene.add(ax);
+
+  $("hudCount").textContent = N.toLocaleString();
+  const sz = window.__wagonBox.getSize(new THREE.Vector3());
+  $("hudSize").textContent = sz.x.toFixed(1)+"×"+sz.z.toFixed(1)+"×"+sz.y.toFixed(1)+" m";
+
+  onResize();
+  fitCamera();
+  applyState();
+
+  try{
+    const q = new URLSearchParams(location.search);
+    const v = q.get("view");
+    if (v && VIEWS[v]) setView(v);
+    const p = q.get("preset");
+    if (p && PRESETS[p]) { Object.assign(state, PRESETS[p]); syncSliders(); applyState(); }
+  }catch(e){}
+
+  loop();
+}
+
+boot();
+})();
+</script>
+</body>
+</html>
