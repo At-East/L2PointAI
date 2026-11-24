@@ -92,7 +92,7 @@ class App(tk.Tk):
         self.v_pick_r = tk.StringVar(value="0.12")
         self.v_grid = tk.BooleanVar(value=True)
         self.v_dx = tk.StringVar(value="0")
-        self.v_dy = tk.StringVar(value="3.5")
+        self.v_dy = tk.StringVar(value="0")
         self.v_dz = tk.StringVar(value="0")
         self.v_rot = tk.StringVar(value="0")
         self.v_pivot = tk.StringVar(value="组中心")
@@ -269,16 +269,19 @@ class App(tk.Tk):
         f.pack(fill="x", **pad)
         tk.Label(f, text="步长", bg=PANEL, fg=FG_DIM, font=FONT_S).pack(side="left")
         mkentry(f, self.v_step, 5).pack(side="left", padx=4)
-        for s in ("0.1", "0.5", "1", "3.5"):
+        for s in ("0.1", "0.5", "1", "5"):
             mkbtn(f, s, lambda s=s: self.v_step.set(s), font=FONT_S, pad=2).pack(side="left", padx=1)
+        tk.Label(p, text="「−/+」只改上面的数字，改完点「应用平移」；\n箭头按钮按这个步长直接移动",
+                 bg=PANEL, fg=FG_DIM, font=FONT_S, justify="left", anchor="w",
+                 wraplength=240).pack(fill="x", padx=12, pady=(2, 0))
 
         quick = tk.Frame(p, bg=PANEL)
         quick.pack(fill="x", pady=(6, 2), **pad)
-        for lab, fn in (("←", lambda: self.nudge(-1, 0, 0)), ("→", lambda: self.nudge(1, 0, 0)),
-                        ("↑", lambda: self.nudge(0, 1, 0)), ("↓", lambda: self.nudge(0, -1, 0)),
-                        ("升", lambda: self.nudge(0, 0, 1)), ("降", lambda: self.nudge(0, 0, -1))):
-            mkbtn(quick, lab, fn, font=FONT).pack(side="left", expand=True, fill="x", padx=1)
-        mkbtn(p, "整车上道轨（复位）", lambda: self.reset_groups(only_target=True)).pack(
+        for lab, fn in (("← −X", lambda: self.nudge(-1, 0, 0)), ("→ +X", lambda: self.nudge(1, 0, 0)),
+                        ("↑ +Y", lambda: self.nudge(0, 1, 0)), ("↓ −Y", lambda: self.nudge(0, -1, 0)),
+                        ("升 +Z", lambda: self.nudge(0, 0, 1)), ("降 −Z", lambda: self.nudge(0, 0, -1))):
+            mkbtn(quick, lab, fn, font=FONT_S).pack(side="left", expand=True, fill="x", padx=1)
+        mkbtn(p, "复位目标组", lambda: self.reset_groups(only_target=True)).pack(
             fill="x", pady=2, **pad)
         mkbtn(p, "复位全部", lambda: self.reset_groups(False)).pack(fill="x", pady=2, **pad)
 
@@ -658,7 +661,13 @@ class App(tk.Tk):
         var.set(f"{self._f(var, 0.0) + step:.3f}")
 
     def apply_translate(self):
-        self.do_translate(self._f(self.v_dx), self._f(self.v_dy), self._f(self.v_dz))
+        dx, dy, dz = self._f(self.v_dx), self._f(self.v_dy), self._f(self.v_dz)
+        if abs(dx) + abs(dy) + abs(dz) < 1e-9:
+            self._hud.set("ΔX/ΔY/ΔZ 都是 0：先在框里填偏移量（单位米），或用下面的箭头按钮")
+            return
+        self.do_translate(dx, dy, dz)
+        for v in (self.v_dx, self.v_dy, self.v_dz):
+            v.set("0")          # 应用完归零，避免重复点一次又挪一遍
 
     def do_translate(self, dx, dy, dz):
         gid = self._target_gid()
